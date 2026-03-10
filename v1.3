@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LED Vision Trouble Logger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appbg: '#121212',
+            panelbg: '#1e1e1e',
+            error: '#ef4444',
+            success: '#22c55e'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    * { -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e1e1e; }
+    ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+    
+    /* ステータスラジカセボタンのスタイル */
+    input[type="radio"]:checked + label.status-unreplaced {
+      background-color: #ef4444; color: white; border-color: #ef4444;
+    }
+    input[type="radio"]:checked + label.status-replaced {
+      background-color: #22c55e; color: white; border-color: #22c55e;
+    }
+  </style>
+</head>
+<body class="bg-appbg text-white font-sans antialiased min-h-screen overscroll-none overflow-hidden relative">
+
+  <main id="setup-screen" class="p-4 md:p-8 max-w-2xl mx-auto h-screen flex flex-col justify-center absolute inset-0 z-10 bg-appbg overflow-y-auto">
+    <div class="bg-panelbg p-6 rounded-2xl shadow-xl border border-gray-800 my-auto">
+      <h1 class="text-2xl font-bold mb-6 text-center text-gray-100">LEDビジョン トラブル記録</h1>
+      
+      <div class="space-y-5">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">機材名</label>
+          <input type="text" id="equipment-name" value="LED Panel Series X" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">全体キャビネット数 (横)</label>
+            <input type="number" id="cab-x" value="5" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">全体キャビネット数 (縦)</label>
+            <input type="number" id="cab-y" value="3" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">1キャビ内モジュール (横)</label>
+            <input type="number" id="mod-x" value="2" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">1キャビ内モジュール (縦)</label>
+            <input type="number" id="mod-y" value="2" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+
+        <button id="btn-generate" class="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-colors active:scale-95 transform shadow-lg">
+          全体図を生成
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <main id="mapping-screen" class="hidden flex-col h-screen absolute inset-0 z-0 bg-appbg">
+    <header class="bg-panelbg border-b border-gray-800 p-4 flex justify-between items-center shrink-0 z-20">
+      <div class="flex items-center gap-3">
+        <button id="btn-re-setup" class="text-sm bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg active:bg-gray-700 transition-colors">
+          ← 戻る
+        </button>
+        <div>
+          <h2 id="header-title" class="text-lg font-bold leading-tight">全体図</h2>
+          <p class="text-xs text-gray-400">タップして記録・編集</p>
+        </div>
+      </div>
+      
+      <button id="btn-open-history" class="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors active:scale-95 shadow-md">
+        履歴
+        <span id="history-badge" class="hidden absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+    </header>
+
+    <div class="flex-1 overflow-auto p-4 md:p-8 relative flex justify-center items-start">
+      <div id="map-container" class="inline-grid gap-1 pb-20">
+        </div>
+    </div>
+  </main>
+
+  <div id="history-overlay" class="hidden fixed inset-0 bg-black/60 z-30 backdrop-blur-sm transition-opacity"></div>
+  
+  <aside id="history-panel" class="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-panelbg border-l border-gray-700 z-40 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+    <div class="bg-gray-800 p-4 border-b border-gray-700 flex justify-between items-center shrink-0">
+      <h3 class="text-lg font-bold text-white">トラブル履歴</h3>
+      <button id="btn-close-history" class="p-2 text-gray-400 hover:text-white bg-gray-700 rounded-full active:bg-gray-600">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    
+    <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3 bg-appbg">
+      </div>
+
+    <div class="p-4 bg-gray-800 border-t border-gray-700 shrink-0 grid grid-cols-2 gap-2">
+      <button id="btn-export-csv" class="w-full py-3 rounded-xl bg-green-700/80 text-white text-sm font-medium active:bg-green-600 transition-colors flex items-center justify-center gap-1">
+        CSV出力
+      </button>
+      <button id="btn-clear-history" class="w-full py-3 rounded-xl bg-red-900/30 text-red-400 text-sm font-medium active:bg-red-900/60 border border-red-900/50 transition-colors">
+        全消去
+      </button>
+    </div>
+  </aside>
+
+  <div id="modal-overlay" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+    <div class="bg-panelbg w-full max-w-sm rounded-2xl shadow-2xl border border-gray-700 flex flex-col max-h-[90vh] overflow-hidden">
+      
+      <div class="bg-gray-800 p-4 border-b border-gray-700 shrink-0 flex justify-between items-center">
+        <h3 id="modal-title" class="text-lg font-bold text-white">新規記録</h3>
+        <span id="pos-info" class="text-xs font-mono text-blue-400 font-bold bg-blue-900/30 px-2 py-1 rounded"></span>
+      </div>
+
+      <div class="p-5 space-y-5 overflow-y-auto flex-1">
+        
+        <input type="hidden" id="edit-record-id" value="">
+        <input type="hidden" id="photo-data-url" value="">
+
+        <div>
+          <label class="block text-xs text-gray-400 mb-2">現在の状態</label>
+          <div class="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+            <div class="flex-1 relative">
+              <input type="radio" id="status-unreplaced" name="module-status" value="unreplaced" class="sr-only" checked>
+              <label for="status-unreplaced" class="status-unreplaced block text-center text-sm py-2 rounded-md text-gray-400 cursor-pointer transition-colors border border-transparent font-bold">未交換</label>
+            </div>
+            <div class="flex-1 relative">
+              <input type="radio" id="status-replaced" name="module-status" value="replaced" class="sr-only">
+              <label for="status-replaced" class="status-replaced block text-center text-sm py-2 rounded-md text-gray-400 cursor-pointer transition-colors border border-transparent font-bold">交換済み</label>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">不具合確認日時</label>
+          <input type="datetime-local" id="issue-datetime" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+              キャビネットSN <span id="sn-autofill-badge" class="hidden text-[10px] text-blue-400">自動補完済</span>
+            </label>
+            <input type="text" id="cabinet-sn" placeholder="例: CAB-123" class="w-full bg-appbg border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">モジュールSN</label>
+            <input type="text" id="module-sn" placeholder="例: MOD-456" class="w-full bg-appbg border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs text-gray-400 mb-2">症状（複数選択可）</p>
+          <div class="flex flex-wrap gap-2 mb-3" id="symptom-tags">
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">キャタピラ</button>
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">全不点灯</button>
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">一部異常点灯</button>
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">色ムラ</button>
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">IC不良</button>
+            <button class="tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors" data-selected="false">物理破損</button>
+          </div>
+          <input type="text" id="custom-symptom" placeholder="その他の症状・メモを自由入力..." class="w-full bg-appbg border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">写真添付 (自動圧縮)</label>
+          <div class="flex items-center gap-3">
+            <label class="flex-1 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-sm py-2.5 rounded-lg cursor-pointer transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              カメラ / アルバム
+              <input type="file" id="photo-upload" accept="image/*" class="hidden">
+            </label>
+            <div id="photo-preview-container" class="hidden h-10 w-10 relative rounded border border-gray-600 overflow-hidden bg-black shrink-0">
+              <img id="photo-preview" src="" class="object-cover w-full h-full">
+              <button id="btn-remove-photo" class="absolute top-0 right-0 bg-red-600/80 text-white w-4 h-4 flex items-center justify-center rounded-bl text-[10px]">×</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="p-4 grid grid-cols-2 gap-3 border-t border-gray-700 bg-gray-800 shrink-0">
+        <button id="btn-cancel" class="py-3 rounded-xl bg-gray-600 text-white font-medium active:bg-gray-500 transition-colors">
+          キャンセル
+        </button>
+        <button id="btn-save" class="py-3 rounded-xl bg-blue-600 text-white font-medium active:bg-blue-500 transition-colors shadow-lg">
+          保存する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'led_trouble_history_v3';
+    let historyRecords = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let currentSelection = { cabX: 0, cabY: 0, modX: 0, modY: 0, element: null };
+
+    // DOM要素の取得
+    const setupScreen = document.getElementById('setup-screen');
+    const mappingScreen = document.getElementById('mapping-screen');
+    const mapContainer = document.getElementById('map-container');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const historyPanel = document.getElementById('history-panel');
+    const historyOverlay = document.getElementById('history-overlay');
+    const historyList = document.getElementById('history-list');
+    
+    // 入力項目
+    const eqNameInput = document.getElementById('equipment-name');
+    const posInfo = document.getElementById('pos-info');
+    const issueDatetimeInput = document.getElementById('issue-datetime');
+    const cabinetSnInput = document.getElementById('cabinet-sn');
+    const moduleSnInput = document.getElementById('module-sn');
+    const customSymptomInput = document.getElementById('custom-symptom');
+    const tagBtns = document.querySelectorAll('.tag-btn');
+    const snAutofillBadge = document.getElementById('sn-autofill-badge');
+    
+    // 編集・写真用
+    const editRecordIdInput = document.getElementById('edit-record-id');
+    const photoUploadInput = document.getElementById('photo-upload');
+    const photoDataUrlInput = document.getElementById('photo-data-url');
+    const photoPreviewContainer = document.getElementById('photo-preview-container');
+    const photoPreviewImg = document.getElementById('photo-preview');
+    const modalTitle = document.getElementById('modal-title');
+
+    // --- マップ生成と表示 ---
+    document.getElementById('btn-generate').addEventListener('click', () => {
+      const cabX = parseInt(document.getElementById('cab-x').value, 10);
+      const cabY = parseInt(document.getElementById('cab-y').value, 10);
+      const modX = parseInt(document.getElementById('mod-x').value, 10);
+      const modY = parseInt(document.getElementById('mod-y').value, 10);
+
+      document.getElementById('header-title').textContent = eqNameInput.value;
+      mapContainer.innerHTML = '';
+      mapContainer.style.gridTemplateColumns = `repeat(${cabX}, max-content)`;
+
+      for (let cy = 1; cy <= cabY; cy++) {
+        for (let cx = 1; cx <= cabX; cx++) {
+          const cabinet = document.createElement('div');
+          cabinet.className = 'border-[3px] border-gray-600 bg-gray-800 p-[2px] grid gap-[2px]';
+          cabinet.style.gridTemplateColumns = `repeat(${modX}, max-content)`;
+
+          for (let my = 1; my <= modY; my++) {
+            for (let mx = 1; mx <= modX; mx++) {
+              const module = document.createElement('button');
+              module.dataset.coord = `${cx}-${cy}-${mx}-${my}`;
+              module.className = 'w-10 h-10 sm:w-12 sm:h-12 bg-gray-700 rounded-sm hover:bg-gray-500 active:bg-gray-400 transition-colors flex items-center justify-center';
+              
+              module.addEventListener('click', () => openModalForNew(cx, cy, mx, my, module));
+              cabinet.appendChild(module);
+            }
+          }
+          mapContainer.appendChild(cabinet);
+        }
+      }
+
+      restoreMapErrors();
+      renderHistoryList();
+
+      setupScreen.classList.add('hidden');
+      mappingScreen.classList.remove('hidden');
+      mappingScreen.classList.add('flex');
+    });
+
+    document.getElementById('btn-re-setup').addEventListener('click', () => {
+      mappingScreen.classList.add('hidden');
+      mappingScreen.classList.remove('flex');
+      setupScreen.classList.remove('hidden');
+    });
+
+    // --- 履歴パネル開閉 ---
+    function openHistory() {
+      historyOverlay.classList.remove('hidden');
+      setTimeout(() => historyPanel.classList.remove('translate-x-full'), 10);
+    }
+    function closeHistory() {
+      historyPanel.classList.add('translate-x-full');
+      setTimeout(() => historyOverlay.classList.add('hidden'), 300);
+    }
+    document.getElementById('btn-open-history').addEventListener('click', openHistory);
+    document.getElementById('btn-close-history').addEventListener('click', closeHistory);
+    historyOverlay.addEventListener('click', closeHistory);
+
+    // --- 画像の圧縮とリサイズ処理 ---
+    photoUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // 最大幅/高さを600pxに制限して軽量化（localStorage用）
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+          } else {
+            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // JPEGの画質0.7でBase64化
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          photoDataUrlInput.value = dataUrl;
+          photoPreviewImg.src = dataUrl;
+          photoPreviewContainer.classList.remove('hidden');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('btn-remove-photo').addEventListener('click', (e) => {
+      e.stopPropagation();
+      photoUploadInput.value = '';
+      photoDataUrlInput.value = '';
+      photoPreviewImg.src = '';
+      photoPreviewContainer.classList.add('hidden');
+    });
+
+    // --- モーダル制御 (新規作成用) ---
+    function openModalForNew(cabX, cabY, modX, modY, moduleElem) {
+      modalTitle.textContent = "新規記録";
+      editRecordIdInput.value = ""; // 新規なので空
+      currentSelection = { cabX, cabY, modX, modY, element: moduleElem };
+      posInfo.textContent = `Cab[${cabX},${cabY}]-Mod[${modX},${modY}]`;
+
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      issueDatetimeInput.value = now.toISOString().slice(0, 16);
+
+      document.getElementById('status-unreplaced').checked = true; // デフォルトは未交換
+
+      // ■ キャビネットSNの自動補完ロジック
+      cabinetSnInput.value = '';
+      snAutofillBadge.classList.add('hidden');
+      const pastRecordInSameCab = historyRecords.find(r => r.cabX === cabX && r.cabY === cabY && r.cabinetSN !== '');
+      if (pastRecordInSameCab) {
+        cabinetSnInput.value = pastRecordInSameCab.cabinetSN;
+        snAutofillBadge.classList.remove('hidden'); // 「自動補完済」バッジ表示
+      }
+
+      moduleSnInput.value = '';
+      customSymptomInput.value = '';
+      
+      resetTags();
+      document.getElementById('btn-remove-photo').click(); // 写真リセット
+
+      modalOverlay.classList.remove('hidden');
+    }
+
+    // --- モーダル制御 (既存の編集用) ---
+    function openModalForEdit(record) {
+      closeHistory(); // パネルを閉じる
+      modalTitle.textContent = "記録を編集";
+      editRecordIdInput.value = record.id;
+      
+      // 画面上のモジュール要素を探しておく
+      const moduleElem = document.querySelector(`button[data-coord="${record.coordId}"]`);
+      currentSelection = { cabX: record.cabX, cabY: record.cabY, modX: record.modX, modY: record.modY, element: moduleElem };
+      
+      posInfo.textContent = `Cab[${record.cabX},${record.cabY}]-Mod[${record.modX},${record.modY}]`;
+      issueDatetimeInput.value = record.timestamp;
+      
+      if (record.status === 'replaced') document.getElementById('status-replaced').checked = true;
+      else document.getElementById('status-unreplaced').checked = true;
+
+      cabinetSnInput.value = record.cabinetSN;
+      snAutofillBadge.classList.add('hidden'); // 編集時はバッジを隠す
+      moduleSnInput.value = record.moduleSN;
+      
+      // 写真の復元
+      if (record.photo) {
+        photoDataUrlInput.value = record.photo;
+        photoPreviewImg.src = record.photo;
+        photoPreviewContainer.classList.remove('hidden');
+      } else {
+        document.getElementById('btn-remove-photo').click();
+      }
+
+      // タグの復元
+      resetTags();
+      const predefinedTags = Array.from(tagBtns).map(btn => btn.textContent);
+      let customText = "";
+      record.symptoms.forEach(s => {
+        if (predefinedTags.includes(s)) {
+          const btn = Array.from(tagBtns).find(b => b.textContent === s);
+          if (btn) toggleTag(btn, true);
+        } else if (s !== '症状未記載') {
+          customText = s; // カスタム症状として扱う
+        }
+      });
+      customSymptomInput.value = customText;
+
+      modalOverlay.classList.remove('hidden');
+    }
+
+    // タグのトグル動作共通化
+    function resetTags() {
+      tagBtns.forEach(btn => toggleTag(btn, false));
+    }
+    function toggleTag(btn, forceState = null) {
+      const isSelected = forceState !== null ? !forceState : (btn.dataset.selected === "true");
+      if (isSelected) {
+        btn.dataset.selected = "false";
+        btn.className = "tag-btn px-3 py-1.5 rounded-full border border-gray-600 bg-appbg text-sm text-gray-300 transition-colors";
+      } else {
+        btn.dataset.selected = "true";
+        btn.className = "tag-btn px-3 py-1.5 rounded-full border border-transparent bg-blue-600 text-sm text-white transition-colors shadow-lg";
+      }
+    }
+
+    tagBtns.forEach(btn => btn.addEventListener('click', () => toggleTag(btn)));
+    document.getElementById('btn-cancel').addEventListener('click', () => modalOverlay.classList.add('hidden'));
+
+    // --- データの保存 (新規・編集共通) ---
+    document.getElementById('btn-save').addEventListener('click', () => {
+      const selectedSymptoms = Array.from(tagBtns)
+        .filter(btn => btn.dataset.selected === "true")
+        .map(btn => btn.textContent);
+
+      const customText = customSymptomInput.value.trim();
+      if (customText) selectedSymptoms.push(customText);
+
+      const status = document.getElementById('status-replaced').checked ? 'replaced' : 'unreplaced';
+      const editId = editRecordIdInput.value;
+
+      const recordData = {
+        id: editId ? parseInt(editId) : Date.now(),
+        timestamp: issueDatetimeInput.value,
+        coordId: `${currentSelection.cabX}-${currentSelection.cabY}-${currentSelection.modX}-${currentSelection.modY}`,
+        cabX: currentSelection.cabX,
+        cabY: currentSelection.cabY,
+        modX: currentSelection.modX,
+        modY: currentSelection.modY,
+        cabinetSN: cabinetSnInput.value.trim(),
+        moduleSN: moduleSnInput.value.trim(),
+        symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : ['症状未記載'],
+        status: status,
+        photo: photoDataUrlInput.value // Base64データ
+      };
+
+      if (editId) {
+        // 編集時の上書き
+        const index = historyRecords.findIndex(r => r.id === recordData.id);
+        if (index !== -1) historyRecords[index] = recordData;
+      } else {
+        // 新規追加
+        historyRecords.unshift(recordData);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(historyRecords));
+
+      restoreMapErrors(); // 色の再描画
+      renderHistoryList();
+      modalOverlay.classList.add('hidden');
+    });
+
+    // --- マップの色付け処理 (ステータス反映) ---
+    function restoreMapErrors() {
+      // 一旦すべての色をリセット
+      document.querySelectorAll('#map-container button').forEach(btn => {
+        btn.classList.remove('bg-error', 'shadow-[0_0_8px_rgba(239,68,68,0.8)]', 'bg-success', 'shadow-[0_0_8px_rgba(34,197,94,0.8)]');
+        btn.classList.add('bg-gray-700', 'hover:bg-gray-500');
+      });
+
+      // 履歴は新しい順(unshift)なので、一番古いものから適用していき、最新のステータスで上書きさせる
+      const reversedRecords = [...historyRecords].reverse();
+      reversedRecords.forEach(record => {
+        const elem = document.querySelector(`button[data-coord="${record.coordId}"]`);
+        if (elem) {
+          elem.classList.remove('bg-gray-700', 'hover:bg-gray-500', 'bg-error', 'bg-success');
+          if (record.status === 'replaced') {
+            elem.classList.add('bg-success', 'shadow-[0_0_8px_rgba(34,197,94,0.8)]');
+          } else {
+            elem.classList.add('bg-error', 'shadow-[0_0_8px_rgba(239,68,68,0.8)]');
+          }
+        }
+      });
+    }
+
+    // --- CSVエクスポート処理 ---
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      if (historyRecords.length === 0) {
+        alert('出力するデータがありません。');
+        return;
+      }
+      
+      // ヘッダーと行データの作成
+      const headers = ['記録ID', '不具合日時', 'キャビネットX', 'キャビネットY', 'モジュールX', 'モジュールY', 'キャビネットSN', 'モジュールSN', '状態', '症状', '写真あり'];
+      const rows = historyRecords.map(r => [
+        r.id,
+        r.timestamp.replace('T', ' '),
+        r.cabX, r.cabY, r.modX, r.modY,
+        `"${r.cabinetSN}"`, // カンマ対策
+        `"${r.moduleSN}"`,
+        r.status === 'replaced' ? '交換済み' : '未交換',
+        `"${r.symptoms.join(' / ')}"`,
+        r.photo ? 'Yes' : 'No'
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      
+      // Excelの文字化け防止用 BOM (\uFEFF)
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      const fileName = `LED_Trouble_${eqNameInput.value.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.csv`;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // --- 履歴削除 ---
+    function deleteRecord(id) {
+      if(!confirm('この記録を削除しますか？')) return;
+      historyRecords = historyRecords.filter(r => r.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(historyRecords));
+      restoreMapErrors();
+      renderHistoryList();
+    }
+    document.getElementById('btn-clear-history').addEventListener('click', () => {
+      if(confirm('すべての履歴を消去します。よろしいですか？')) {
+        historyRecords = [];
+        localStorage.removeItem(STORAGE_KEY);
+        restoreMapErrors();
+        renderHistoryList();
+        closeHistory();
+      }
+    });
+
+    // --- 履歴リストの描画 ---
+    function renderHistoryList() {
+      historyList.innerHTML = '';
+      const badge = document.getElementById('history-badge');
+
+      if (historyRecords.length > 0) {
+        badge.textContent = historyRecords.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+        historyList.innerHTML = `<p class="text-gray-500 text-sm text-center mt-10">記録された履歴はありません。</p>`;
+        return;
+      }
+
+      historyRecords.forEach(record => {
+        const item = document.createElement('div');
+        const statusColor = record.status === 'replaced' ? 'text-success border-success bg-success/10' : 'text-error border-error bg-error/10';
+        const statusLabel = record.status === 'replaced' ? '交換済' : '未交換';
+        
+        item.className = 'bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-sm relative pr-10';
+        
+        const tagsHtml = record.symptoms.map(s => `<span class="inline-block bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded-md mr-1 mb-1 border border-gray-600">${s}</span>`).join('');
+        const displayDate = record.timestamp ? record.timestamp.replace('T', ' ').replace(/-/g, '/') : '日時不明';
+        const photoIcon = record.photo ? `<span class="ml-2 text-blue-400" title="写真あり">📷</span>` : '';
+
+        item.innerHTML = `
+          <div class="flex flex-col gap-1 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono text-blue-400 font-bold bg-blue-900/30 px-1.5 py-0.5 rounded">
+                Cab[${record.cabX},${record.cabY}]-Mod[${record.modX},${record.modY}]
+              </span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${statusColor}">${statusLabel}</span>
+            </div>
+            <span class="text-[11px] text-gray-400">${displayDate} ${photoIcon}</span>
+          </div>
+          
+          <div class="text-[10px] text-gray-300 grid grid-cols-1 gap-0.5 mb-2 bg-appbg p-1.5 rounded border border-gray-700">
+            <div>Cab SN: <span class="text-white font-mono">${record.cabinetSN || '未入力'}</span></div>
+            <div>Mod SN: <span class="text-white font-mono">${record.moduleSN || '未入力'}</span></div>
+          </div>
+          
+          <div>${tagsHtml}</div>
+          
+          <button class="btn-edit absolute top-2 right-2 p-1.5 text-blue-400 hover:text-blue-300 active:bg-gray-700 rounded-lg transition-colors" data-id="${record.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+
+          <button class="btn-delete absolute top-9 right-2 p-1.5 text-gray-500 hover:text-red-400 active:bg-gray-700 rounded-lg transition-colors" data-id="${record.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        `;
+
+        item.querySelector('.btn-edit').addEventListener('click', () => openModalForEdit(record));
+        item.querySelector('.btn-delete').addEventListener('click', () => deleteRecord(record.id));
+        historyList.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>
