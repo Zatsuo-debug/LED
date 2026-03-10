@@ -7,16 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            appbg: '#121212',
-            panelbg: '#1e1e1e',
-            error: '#ef4444',
-            success: '#22c55e'
-          }
-        }
-      }
+      theme: { extend: { colors: { appbg: '#121212', panelbg: '#1e1e1e', error: '#ef4444', success: '#22c55e' } } }
     }
   </script>
   <style>
@@ -25,14 +16,8 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #1e1e1e; }
     ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-    
-    /* ステータスラジカセボタンのスタイル */
-    input[type="radio"]:checked + label.status-unreplaced {
-      background-color: #ef4444; color: white; border-color: #ef4444;
-    }
-    input[type="radio"]:checked + label.status-replaced {
-      background-color: #22c55e; color: white; border-color: #22c55e;
-    }
+    input[type="radio"]:checked + label.status-unreplaced { background-color: #ef4444; color: white; border-color: #ef4444; }
+    input[type="radio"]:checked + label.status-replaced { background-color: #22c55e; color: white; border-color: #22c55e; }
   </style>
 </head>
 <body class="bg-appbg text-white font-sans antialiased min-h-screen overscroll-none overflow-hidden relative">
@@ -49,11 +34,11 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm text-gray-400 mb-1">全体キャビネット数 (横)</label>
+            <label class="block text-sm text-gray-400 mb-1">全体キャビネット (横)</label>
             <input type="number" id="cab-x" value="5" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
           </div>
           <div>
-            <label class="block text-sm text-gray-400 mb-1">全体キャビネット数 (縦)</label>
+            <label class="block text-sm text-gray-400 mb-1">全体キャビネット (縦)</label>
             <input type="number" id="cab-y" value="3" class="w-full bg-appbg border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
           </div>
         </div>
@@ -84,7 +69,10 @@
         </button>
         <div>
           <h2 id="header-title" class="text-lg font-bold leading-tight">全体図</h2>
-          <p class="text-xs text-gray-400">タップして記録・編集</p>
+          <p class="text-xs text-gray-400 flex items-center gap-1">
+            <span id="sync-status" class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+            クラウド同期中
+          </p>
         </div>
       </div>
       
@@ -118,7 +106,7 @@
         CSV出力
       </button>
       <button id="btn-clear-history" class="w-full py-3 rounded-xl bg-red-900/30 text-red-400 text-sm font-medium active:bg-red-900/60 border border-red-900/50 transition-colors">
-        全消去
+        クラウド全消去
       </button>
     </div>
   </aside>
@@ -158,7 +146,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-gray-400 mb-1 flex justify-between">
-              キャビネットSN <span id="sn-autofill-badge" class="hidden text-[10px] text-blue-400">自動補完済</span>
+              キャビSN <span id="sn-autofill-badge" class="hidden text-[10px] text-blue-400">自動補完</span>
             </label>
             <input type="text" id="cabinet-sn" placeholder="例: CAB-123" class="w-full bg-appbg border border-gray-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
           </div>
@@ -182,7 +170,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">写真添付 (自動圧縮)</label>
+          <label class="block text-xs text-gray-400 mb-1">写真添付</label>
           <div class="flex items-center gap-3">
             <label class="flex-1 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-sm py-2.5 rounded-lg cursor-pointer transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
@@ -190,7 +178,7 @@
               <input type="file" id="photo-upload" accept="image/*" class="hidden">
             </label>
             <div id="photo-preview-container" class="hidden h-10 w-10 relative rounded border border-gray-600 overflow-hidden bg-black shrink-0">
-              <img id="photo-preview" src="" class="object-cover w-full h-full">
+              <img id="photo-preview" src="" class="object-cover w-full h-full cursor-pointer" onclick="if(this.src) { const w = window.open(); w.document.write('<img src=&quot;'+this.src+'&quot; style=&quot;max-width:100%;&quot;>'); }">
               <button id="btn-remove-photo" class="absolute top-0 right-0 bg-red-600/80 text-white w-4 h-4 flex items-center justify-center rounded-bl text-[10px]">×</button>
             </div>
           </div>
@@ -202,16 +190,34 @@
         <button id="btn-cancel" class="py-3 rounded-xl bg-gray-600 text-white font-medium active:bg-gray-500 transition-colors">
           キャンセル
         </button>
-        <button id="btn-save" class="py-3 rounded-xl bg-blue-600 text-white font-medium active:bg-blue-500 transition-colors shadow-lg">
-          保存する
+        <button id="btn-save" class="py-3 rounded-xl bg-blue-600 text-white font-medium active:bg-blue-500 transition-colors shadow-lg flex justify-center items-center">
+          クラウドへ保存
         </button>
       </div>
     </div>
   </div>
 
-  <script>
-    const STORAGE_KEY = 'led_trouble_history_v3';
-    let historyRecords = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  <script type="module">
+    // Firebase SDKのインポート (Storageを使用せず、Firestoreのみインポート)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 取得したFirebase Configを設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAyGF_Wq4Cju71KdC17xpjbOiJvVyJs2ng",
+      authDomain: "led-trouble-logger.firebaseapp.com",
+      projectId: "led-trouble-logger",
+      storageBucket: "led-trouble-logger.firebasestorage.app",
+      messagingSenderId: "79997045338",
+      appId: "1:79997045338:web:e2f1ce39b57c7e44032663",
+      measurementId: "G-DZ82R9GEZX"
+    };
+
+    // Firebaseの初期化（Firestoreのみ）
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let historyRecords = [];
     let currentSelection = { cabX: 0, cabY: 0, modX: 0, modY: 0, element: null };
 
     // DOM要素の取得
@@ -223,7 +229,6 @@
     const historyOverlay = document.getElementById('history-overlay');
     const historyList = document.getElementById('history-list');
     
-    // 入力項目
     const eqNameInput = document.getElementById('equipment-name');
     const posInfo = document.getElementById('pos-info');
     const issueDatetimeInput = document.getElementById('issue-datetime');
@@ -233,13 +238,26 @@
     const tagBtns = document.querySelectorAll('.tag-btn');
     const snAutofillBadge = document.getElementById('sn-autofill-badge');
     
-    // 編集・写真用
     const editRecordIdInput = document.getElementById('edit-record-id');
     const photoUploadInput = document.getElementById('photo-upload');
     const photoDataUrlInput = document.getElementById('photo-data-url');
     const photoPreviewContainer = document.getElementById('photo-preview-container');
     const photoPreviewImg = document.getElementById('photo-preview');
     const modalTitle = document.getElementById('modal-title');
+    const btnSave = document.getElementById('btn-save');
+
+    // ==========================================
+    // リアルタイム同期（Firestoreの監視）
+    // ==========================================
+    const q = query(collection(db, "troubles"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      historyRecords = [];
+      snapshot.forEach((doc) => {
+        historyRecords.push({ id: doc.id, ...doc.data() });
+      });
+      restoreMapErrors();
+      renderHistoryList();
+    });
 
     // --- マップ生成と表示 ---
     document.getElementById('btn-generate').addEventListener('click', () => {
@@ -273,8 +291,6 @@
       }
 
       restoreMapErrors();
-      renderHistoryList();
-
       setupScreen.classList.add('hidden');
       mappingScreen.classList.remove('hidden');
       mappingScreen.classList.add('flex');
@@ -299,7 +315,7 @@
     document.getElementById('btn-close-history').addEventListener('click', closeHistory);
     historyOverlay.addEventListener('click', closeHistory);
 
-    // --- 画像の圧縮とリサイズ処理 ---
+    // --- 画像の圧縮処理（Firestore文字保存用に制限を厳しくする） ---
     photoUploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -308,9 +324,9 @@
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          // 最大幅/高さを600pxに制限して軽量化（localStorage用）
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 600;
+          // Firestoreの1MB制限に余裕で収まるよう、最大幅を500pxに制限
+          const MAX_SIZE = 500; 
           let width = img.width;
           let height = img.height;
 
@@ -325,8 +341,8 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // JPEGの画質0.7でBase64化
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          // 画質を60%に落としてデータ量を削減（見た目はスマホ画面なら十分綺麗です）
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
           photoDataUrlInput.value = dataUrl;
           photoPreviewImg.src = dataUrl;
           photoPreviewContainer.classList.remove('hidden');
@@ -344,10 +360,10 @@
       photoPreviewContainer.classList.add('hidden');
     });
 
-    // --- モーダル制御 (新規作成用) ---
+    // --- モーダル制御 ---
     function openModalForNew(cabX, cabY, modX, modY, moduleElem) {
       modalTitle.textContent = "新規記録";
-      editRecordIdInput.value = ""; // 新規なので空
+      editRecordIdInput.value = ""; 
       currentSelection = { cabX, cabY, modX, modY, element: moduleElem };
       posInfo.textContent = `Cab[${cabX},${cabY}]-Mod[${modX},${modY}]`;
 
@@ -355,33 +371,35 @@
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       issueDatetimeInput.value = now.toISOString().slice(0, 16);
 
-      document.getElementById('status-unreplaced').checked = true; // デフォルトは未交換
+      document.getElementById('status-unreplaced').checked = true;
 
-      // ■ キャビネットSNの自動補完ロジック
+      // キャビネットSNの自動補完
       cabinetSnInput.value = '';
       snAutofillBadge.classList.add('hidden');
       const pastRecordInSameCab = historyRecords.find(r => r.cabX === cabX && r.cabY === cabY && r.cabinetSN !== '');
       if (pastRecordInSameCab) {
         cabinetSnInput.value = pastRecordInSameCab.cabinetSN;
-        snAutofillBadge.classList.remove('hidden'); // 「自動補完済」バッジ表示
+        snAutofillBadge.classList.remove('hidden');
       }
 
       moduleSnInput.value = '';
       customSymptomInput.value = '';
       
       resetTags();
-      document.getElementById('btn-remove-photo').click(); // 写真リセット
+      document.getElementById('btn-remove-photo').click();
 
       modalOverlay.classList.remove('hidden');
     }
 
-    // --- モーダル制御 (既存の編集用) ---
-    function openModalForEdit(record) {
-      closeHistory(); // パネルを閉じる
+    // 編集用モーダルを開く
+    window.openModalForEdit = function(recordId) {
+      const record = historyRecords.find(r => r.id === recordId);
+      if(!record) return;
+
+      closeHistory(); 
       modalTitle.textContent = "記録を編集";
       editRecordIdInput.value = record.id;
       
-      // 画面上のモジュール要素を探しておく
       const moduleElem = document.querySelector(`button[data-coord="${record.coordId}"]`);
       currentSelection = { cabX: record.cabX, cabY: record.cabY, modX: record.modX, modY: record.modY, element: moduleElem };
       
@@ -392,19 +410,17 @@
       else document.getElementById('status-unreplaced').checked = true;
 
       cabinetSnInput.value = record.cabinetSN;
-      snAutofillBadge.classList.add('hidden'); // 編集時はバッジを隠す
+      snAutofillBadge.classList.add('hidden');
       moduleSnInput.value = record.moduleSN;
       
-      // 写真の復元
-      if (record.photo) {
-        photoDataUrlInput.value = record.photo;
-        photoPreviewImg.src = record.photo;
+      if (record.photoData) {
+        photoDataUrlInput.value = record.photoData;
+        photoPreviewImg.src = record.photoData;
         photoPreviewContainer.classList.remove('hidden');
       } else {
         document.getElementById('btn-remove-photo').click();
       }
 
-      // タグの復元
       resetTags();
       const predefinedTags = Array.from(tagBtns).map(btn => btn.textContent);
       let customText = "";
@@ -413,7 +429,7 @@
           const btn = Array.from(tagBtns).find(b => b.textContent === s);
           if (btn) toggleTag(btn, true);
         } else if (s !== '症状未記載') {
-          customText = s; // カスタム症状として扱う
+          customText = s;
         }
       });
       customSymptomInput.value = customText;
@@ -421,10 +437,7 @@
       modalOverlay.classList.remove('hidden');
     }
 
-    // タグのトグル動作共通化
-    function resetTags() {
-      tagBtns.forEach(btn => toggleTag(btn, false));
-    }
+    function resetTags() { tagBtns.forEach(btn => toggleTag(btn, false)); }
     function toggleTag(btn, forceState = null) {
       const isSelected = forceState !== null ? !forceState : (btn.dataset.selected === "true");
       if (isSelected) {
@@ -439,58 +452,63 @@
     tagBtns.forEach(btn => btn.addEventListener('click', () => toggleTag(btn)));
     document.getElementById('btn-cancel').addEventListener('click', () => modalOverlay.classList.add('hidden'));
 
-    // --- データの保存 (新規・編集共通) ---
-    document.getElementById('btn-save').addEventListener('click', () => {
-      const selectedSymptoms = Array.from(tagBtns)
-        .filter(btn => btn.dataset.selected === "true")
-        .map(btn => btn.textContent);
+    // ==========================================
+    // Firestoreへのデータ保存（画像も文字として保存）
+    // ==========================================
+    btnSave.addEventListener('click', async () => {
+      const originalBtnText = btnSave.innerHTML;
+      btnSave.disabled = true;
+      btnSave.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 通信中...`;
 
-      const customText = customSymptomInput.value.trim();
-      if (customText) selectedSymptoms.push(customText);
+      try {
+        const selectedSymptoms = Array.from(tagBtns).filter(btn => btn.dataset.selected === "true").map(btn => btn.textContent);
+        const customText = customSymptomInput.value.trim();
+        if (customText) selectedSymptoms.push(customText);
 
-      const status = document.getElementById('status-replaced').checked ? 'replaced' : 'unreplaced';
-      const editId = editRecordIdInput.value;
+        const status = document.getElementById('status-replaced').checked ? 'replaced' : 'unreplaced';
+        const editId = editRecordIdInput.value;
 
-      const recordData = {
-        id: editId ? parseInt(editId) : Date.now(),
-        timestamp: issueDatetimeInput.value,
-        coordId: `${currentSelection.cabX}-${currentSelection.cabY}-${currentSelection.modX}-${currentSelection.modY}`,
-        cabX: currentSelection.cabX,
-        cabY: currentSelection.cabY,
-        modX: currentSelection.modX,
-        modY: currentSelection.modY,
-        cabinetSN: cabinetSnInput.value.trim(),
-        moduleSN: moduleSnInput.value.trim(),
-        symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : ['症状未記載'],
-        status: status,
-        photo: photoDataUrlInput.value // Base64データ
-      };
+        // 【変更点】画像を文字テキスト（Base64）のままFirestoreに保存する
+        const recordData = {
+          timestamp: issueDatetimeInput.value,
+          coordId: `${currentSelection.cabX}-${currentSelection.cabY}-${currentSelection.modX}-${currentSelection.modY}`,
+          cabX: currentSelection.cabX,
+          cabY: currentSelection.cabY,
+          modX: currentSelection.modX,
+          modY: currentSelection.modY,
+          cabinetSN: cabinetSnInput.value.trim(),
+          moduleSN: moduleSnInput.value.trim(),
+          symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : ['症状未記載'],
+          status: status,
+          photoData: photoDataUrlInput.value // 文字化された画像データ
+        };
 
-      if (editId) {
-        // 編集時の上書き
-        const index = historyRecords.findIndex(r => r.id === recordData.id);
-        if (index !== -1) historyRecords[index] = recordData;
-      } else {
-        // 新規追加
-        historyRecords.unshift(recordData);
+        if (editId) {
+          // Firestoreの上書き更新
+          await updateDoc(doc(db, "troubles", editId), recordData);
+        } else {
+          // Firestoreへ新規追加
+          recordData.createdAt = Date.now(); 
+          await addDoc(collection(db, "troubles"), recordData);
+        }
+
+        modalOverlay.classList.add('hidden');
+      } catch (error) {
+        console.error("保存エラー: ", error);
+        alert("保存に失敗しました。\n" + error.message);
+      } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalBtnText;
       }
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(historyRecords));
-
-      restoreMapErrors(); // 色の再描画
-      renderHistoryList();
-      modalOverlay.classList.add('hidden');
     });
 
-    // --- マップの色付け処理 (ステータス反映) ---
+    // --- マップの色付け処理 ---
     function restoreMapErrors() {
-      // 一旦すべての色をリセット
       document.querySelectorAll('#map-container button').forEach(btn => {
         btn.classList.remove('bg-error', 'shadow-[0_0_8px_rgba(239,68,68,0.8)]', 'bg-success', 'shadow-[0_0_8px_rgba(34,197,94,0.8)]');
         btn.classList.add('bg-gray-700', 'hover:bg-gray-500');
       });
 
-      // 履歴は新しい順(unshift)なので、一番古いものから適用していき、最新のステータスで上書きさせる
       const reversedRecords = [...historyRecords].reverse();
       reversedRecords.forEach(record => {
         const elem = document.querySelector(`button[data-coord="${record.coordId}"]`);
@@ -504,58 +522,6 @@
         }
       });
     }
-
-    // --- CSVエクスポート処理 ---
-    document.getElementById('btn-export-csv').addEventListener('click', () => {
-      if (historyRecords.length === 0) {
-        alert('出力するデータがありません。');
-        return;
-      }
-      
-      // ヘッダーと行データの作成
-      const headers = ['記録ID', '不具合日時', 'キャビネットX', 'キャビネットY', 'モジュールX', 'モジュールY', 'キャビネットSN', 'モジュールSN', '状態', '症状', '写真あり'];
-      const rows = historyRecords.map(r => [
-        r.id,
-        r.timestamp.replace('T', ' '),
-        r.cabX, r.cabY, r.modX, r.modY,
-        `"${r.cabinetSN}"`, // カンマ対策
-        `"${r.moduleSN}"`,
-        r.status === 'replaced' ? '交換済み' : '未交換',
-        `"${r.symptoms.join(' / ')}"`,
-        r.photo ? 'Yes' : 'No'
-      ]);
-
-      const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-      
-      // Excelの文字化け防止用 BOM (\uFEFF)
-      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      const fileName = `LED_Trouble_${eqNameInput.value.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.csv`;
-      link.setAttribute("download", fileName);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-
-    // --- 履歴削除 ---
-    function deleteRecord(id) {
-      if(!confirm('この記録を削除しますか？')) return;
-      historyRecords = historyRecords.filter(r => r.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(historyRecords));
-      restoreMapErrors();
-      renderHistoryList();
-    }
-    document.getElementById('btn-clear-history').addEventListener('click', () => {
-      if(confirm('すべての履歴を消去します。よろしいですか？')) {
-        historyRecords = [];
-        localStorage.removeItem(STORAGE_KEY);
-        restoreMapErrors();
-        renderHistoryList();
-        closeHistory();
-      }
-    });
 
     // --- 履歴リストの描画 ---
     function renderHistoryList() {
@@ -580,7 +546,9 @@
         
         const tagsHtml = record.symptoms.map(s => `<span class="inline-block bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded-md mr-1 mb-1 border border-gray-600">${s}</span>`).join('');
         const displayDate = record.timestamp ? record.timestamp.replace('T', ' ').replace(/-/g, '/') : '日時不明';
-        const photoIcon = record.photo ? `<span class="ml-2 text-blue-400" title="写真あり">📷</span>` : '';
+        
+        // 写真アイコンをクリックすると、別ウィンドウで画像（Base64データ）を開く
+        const photoIcon = record.photoData ? `<span class="ml-2 text-blue-400 hover:text-blue-300 cursor-pointer" title="写真を見る" onclick="const w = window.open(); w.document.write('<img src=&quot;${record.photoData}&quot; style=&quot;max-width:100%;&quot;>');">📷写真</span>` : '';
 
         item.innerHTML = `
           <div class="flex flex-col gap-1 mb-2">
@@ -592,28 +560,67 @@
             </div>
             <span class="text-[11px] text-gray-400">${displayDate} ${photoIcon}</span>
           </div>
-          
           <div class="text-[10px] text-gray-300 grid grid-cols-1 gap-0.5 mb-2 bg-appbg p-1.5 rounded border border-gray-700">
             <div>Cab SN: <span class="text-white font-mono">${record.cabinetSN || '未入力'}</span></div>
             <div>Mod SN: <span class="text-white font-mono">${record.moduleSN || '未入力'}</span></div>
           </div>
-          
           <div>${tagsHtml}</div>
           
-          <button class="btn-edit absolute top-2 right-2 p-1.5 text-blue-400 hover:text-blue-300 active:bg-gray-700 rounded-lg transition-colors" data-id="${record.id}">
+          <button onclick="window.openModalForEdit('${record.id}')" class="absolute top-2 right-2 p-1.5 text-blue-400 hover:text-blue-300 active:bg-gray-700 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
 
-          <button class="btn-delete absolute top-9 right-2 p-1.5 text-gray-500 hover:text-red-400 active:bg-gray-700 rounded-lg transition-colors" data-id="${record.id}">
+          <button onclick="window.deleteRecordFromCloud('${record.id}')" class="absolute top-9 right-2 p-1.5 text-gray-500 hover:text-red-400 active:bg-gray-700 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         `;
-
-        item.querySelector('.btn-edit').addEventListener('click', () => openModalForEdit(record));
-        item.querySelector('.btn-delete').addEventListener('click', () => deleteRecord(record.id));
         historyList.appendChild(item);
       });
     }
+
+    window.deleteRecordFromCloud = async function(id) {
+      if(!confirm('クラウドからこの記録を削除しますか？\n（チーム全員の画面からも消えます）')) return;
+      try {
+        await deleteDoc(doc(db, "troubles", id));
+      } catch (error) {
+        alert("削除に失敗しました: " + error.message);
+      }
+    }
+
+    document.getElementById('btn-clear-history').addEventListener('click', async () => {
+      if(confirm('【警告】すべての履歴をクラウドから完全に消去します。\nチーム全員のデータがリセットされます。よろしいですか？')) {
+        try {
+          const snapshot = await getDocs(collection(db, "troubles"));
+          snapshot.forEach(async (docSnap) => {
+            await deleteDoc(doc(db, "troubles", docSnap.id));
+          });
+          closeHistory();
+        } catch(error) {
+          alert("消去に失敗しました: " + error.message);
+        }
+      }
+    });
+
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      if (historyRecords.length === 0) return alert('出力するデータがありません。');
+      
+      const headers = ['記録ID', '不具合日時', 'キャビX', 'キャビY', 'モジュX', 'モジュY', 'キャビSN', 'モジュSN', '状態', '症状', '写真あり'];
+      const rows = historyRecords.map(r => [
+        r.id, r.timestamp.replace('T', ' '), r.cabX, r.cabY, r.modX, r.modY,
+        `"${r.cabinetSN}"`, `"${r.moduleSN}"`,
+        r.status === 'replaced' ? '交換済み' : '未交換',
+        `"${r.symptoms.join(' / ')}"`,
+        r.photoData ? 'Yes' : 'No'
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `LED_Trouble_${eqNameInput.value.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    });
   </script>
 </body>
 </html>
